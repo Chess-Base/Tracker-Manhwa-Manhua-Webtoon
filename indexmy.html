@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Manhwa Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif; /* Using a common sans-serif font */
+        }
+        .manhwa-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: rgba(31, 41, 55, 0.8); /* Slightly lighter dark background */
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(59, 130, 246, 0.2); /* Subtle border */
+        }
+        .manhwa-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e3a8a, #4f46e5, #7c3aed); /* Deeper blue/purple gradient */
+        }
+        .modal {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 50; /* Ensure modal is on top */
+        }
+        .modal-hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+        .modal-visible {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        .input-glow {
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .input-glow:focus {
+            box-shadow: 0 0 12px rgba(96, 165, 250, 0.5); /* Tailwind blue-400 */
+            border-color: rgba(96, 165, 250, 0.7);
+        }
+        .button-glow {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .button-glow:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        .form-hidden {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, opacity 0.3s ease-out, margin-bottom 0.5s ease-out, padding 0.5s ease-out;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            border-width: 0 !important;
+        }
+        .form-visible {
+            max-height: 1000px; /* Adjust as needed */
+            opacity: 1;
+            transition: max-height 0.5s ease-in, opacity 0.5s ease-in 0.1s, margin-bottom 0.5s ease-in, padding 0.5s ease-in;
+        }
+        .modal-content {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 0.5rem; /* Space for scrollbar */
+        }
+        .modal-footer {
+            flex-shrink: 0;
+            padding-top: 1rem;
+        }
+        /* Custom scrollbar for modal body */
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+            background: rgba(55, 65, 81, 0.5); /* gray-700 */
+            border-radius: 10px;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+            background-color: rgba(96, 165, 250, 0.6); /* blue-400 */
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(96, 165, 250, 0.8);
+        }
+        /* Image fallback */
+        img[data-fallback]:error {
+            content: '';
+            background-image: url(attr(data-fallback));
+            background-size: cover;
+            background-position: center;
+            background-color: #374151; /* gray-700 */
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 min-h-screen flex flex-col text-gray-200">
+    <header class="gradient-bg text-white py-8 shadow-lg relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-800/10 to-purple-800/10 animate-pulse"></div>
+        <div class="container mx-auto px-4 text-center relative z-10">
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">My Manhwa & Webtoon Library</h1>
+            <p class="mt-2 text-lg text-blue-200">Your personal tracker</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8 flex-grow">
+
+        <div class="mb-6 p-4 bg-gray-800 rounded-xl shadow-md flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-4 items-center">
+                <button onclick="toggleAddForm()" id="toggle-form-btn" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg button-glow hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 flex items-center gap-2">
+                    <i class="fas fa-plus"></i> <span id="toggle-form-text">Add New</span>
+                </button>
+                <div class="relative">
+                    <input type="text" id="search-input" placeholder="Search by title or author..." class="pl-10 pr-4 py-2 rounded-lg border-gray-600 bg-gray-700 text-gray-200 focus:ring-blue-500 focus:border-blue-500 input-glow w-full sm:w-64" oninput="handleSearch()">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-4 items-center">
+                 <select id="status-filter" class="rounded-lg border-gray-600 bg-gray-700 text-gray-200 focus:ring-blue-500 focus:border-blue-500 input-glow py-2 px-3" onchange="handleFilter()">
+                    <option value="all">All Statuses</option>
+                    <option value="Reading">Reading</option>
+                    <option value="Completed">Completed</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Dropped">Dropped</option>
+                    <option value="Planned">Planned</option>
+                 </select>
+                 <select id="sort-select" class="rounded-lg border-gray-600 bg-gray-700 text-gray-200 focus:ring-blue-500 focus:border-blue-500 input-glow py-2 px-3" onchange="handleSort()">
+                    <option value="dateAdded_desc">Sort by: Date Added (Newest)</option>
+                    <option value="dateAdded_asc">Sort by: Date Added (Oldest)</option>
+                    <option value="title_asc">Sort by: Title (A-Z)</option>
+                    <option value="title_desc">Sort by: Title (Z-A)</option>
+                    <option value="chapter_desc">Sort by: Chapter (Highest)</option>
+                    <option value="chapter_asc">Sort by: Chapter (Lowest)</option>
+                    <option value="lastUpdated_desc">Sort by: Last Updated (Newest)</option>
+                    <option value="lastUpdated_asc">Sort by: Last Updated (Oldest)</option>
+                 </select>
+            </div>
+        </div>
+
+        <section id="add-form" class="bg-gray-800/90 p-6 md:p-8 rounded-2xl shadow-xl mb-8 border border-blue-500/30 backdrop-blur-sm form-hidden">
+            <h2 class="text-2xl font-bold mb-6 text-blue-300">Add New Entry</h2>
+            <form id="add-manhwa-form" class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+                        <input type="text" id="title" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="author" class="block text-sm font-medium text-gray-300 mb-1">Author</label>
+                        <input type="text" id="author" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="chapter" class="block text-sm font-medium text-gray-300 mb-1">Current Chapter</label>
+                        <input type="number" id="chapter" min="0" step="any" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 42 or 10.5">
+                    </div>
+                     <div>
+                        <label for="status" class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                        <select id="status" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500">
+                            <option value="Reading">Reading</option>
+                            <option value="Planned">Planned</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Dropped">Dropped</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="website" class="block text-sm font-medium text-gray-300 mb-1">Website URL</label>
+                    <input type="url" id="website" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" placeholder="https://example.com">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+                    <div>
+                        <label for="image-url" class="block text-sm font-medium text-gray-300 mb-1">Image URL</label>
+                        <input type="url" id="image-url" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" placeholder="https://example.com/image.jpg">
+                    </div>
+                    <div>
+                        <label for="image-file" class="block text-sm font-medium text-gray-300 mb-1">Or Upload Image (Max 2MB)</label>
+                        <input type="file" id="image-file" accept="image/*" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                        <img id="image-preview" src="#" alt="Image Preview" class="mt-2 rounded-lg max-h-20 hidden object-contain"/>
+                    </div>
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-300 mb-1">Description / Notes</label>
+                    <textarea id="description" rows="3" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-4">
+                     <button type="button" onclick="toggleAddForm()" class="bg-gray-600 text-white py-2 px-5 rounded-lg button-glow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">Cancel</button>
+                    <button type="submit" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg button-glow hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50">Add Entry</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="manhwa-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div id="loading-indicator" class="col-span-full text-center py-10 text-gray-400 hidden">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p class="mt-2 text-lg">Loading...</p>
+            </div>
+            <div id="no-results-indicator" class="col-span-full text-center py-10 text-gray-500 hidden">
+                <i class="fas fa-folder-open fa-3x"></i>
+                <p class="mt-2 text-lg">No entries found matching your criteria.</p>
+            </div>
+        </section>
+
+        <div id="pagination-controls" class="mt-8 flex justify-center items-center gap-2">
+            </div>
+
+        <section class="mt-12 p-6 bg-gray-800 rounded-xl shadow-md">
+            <h2 class="text-xl font-semibold mb-4 text-blue-300">Data Management</h2>
+            <div class="flex flex-wrap gap-4">
+                <button onclick="exportData()" class="bg-green-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50 flex items-center gap-2">
+                    <i class="fas fa-file-export"></i> Export Data
+                </button>
+                <div>
+                    <label for="import-file" class="bg-yellow-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50 cursor-pointer flex items-center gap-2">
+                        <i class="fas fa-file-import"></i> Import Data
+                    </label>
+                    <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)">
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="edit-modal" class="modal fixed inset-0 flex items-center justify-center p-4 modal-hidden">
+        <div class="bg-gray-800/95 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-2xl border border-blue-500/30 backdrop-blur-md modal-content">
+            <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-2xl font-bold text-blue-300">Edit Entry</h2>
+                 <button onclick="closeEditModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="edit-manhwa-form" class="modal-body space-y-5 pr-2">
+                <input type="hidden" id="edit-id">
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="edit-title" class="block text-sm font-medium text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+                        <input type="text" id="edit-title" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="edit-author" class="block text-sm font-medium text-gray-300 mb-1">Author</label>
+                        <input type="text" id="edit-author" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="edit-chapter" class="block text-sm font-medium text-gray-300 mb-1">Current Chapter</label>
+                        <input type="number" id="edit-chapter" min="0" step="any" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 42 or 10.5">
+                    </div>
+                     <div>
+                        <label for="edit-status" class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                        <select id="edit-status" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500">
+                            <option value="Reading">Reading</option>
+                            <option value="Planned">Planned</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Dropped">Dropped</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="edit-website" class="block text-sm font-medium text-gray-300 mb-1">Website URL</label>
+                    <input type="url" id="edit-website" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" placeholder="https://example.com">
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+                    <div>
+                        <label for="edit-image-url" class="block text-sm font-medium text-gray-300 mb-1">Image URL</label>
+                        <input type="url" id="edit-image-url" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500" placeholder="https://example.com/image.jpg">
+                        <img id="edit-current-image" src="#" alt="Current Image" class="mt-2 rounded-lg max-h-24 object-contain border border-gray-600"/>
+                    </div>
+                    <div>
+                        <label for="edit-image-file" class="block text-sm font-medium text-gray-300 mb-1">Or Upload New Image (Max 2MB)</label>
+                        <input type="file" id="edit-image-file" accept="image/*" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                         <img id="edit-image-preview" src="#" alt="New Image Preview" class="mt-2 rounded-lg max-h-20 hidden object-contain"/>
+                    </div>
+                </div>
+                <div>
+                    <label for="edit-description" class="block text-sm font-medium text-gray-300 mb-1">Description / Notes</label>
+                    <textarea id="edit-description" rows="3" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-gray-100 shadow-sm input-glow focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+            </form>
+            <div class="modal-footer flex justify-end gap-4 mt-6">
+                <button type="button" onclick="closeEditModal()" class="bg-gray-600 text-white py-2 px-5 rounded-lg button-glow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">Cancel</button>
+                <button type="button" onclick="saveEdit()" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-5 rounded-lg button-glow hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal fixed inset-0 flex items-center justify-center p-4 modal-hidden">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-yellow-500/30">
+            <h3 class="text-lg font-semibold text-yellow-300 mb-4" id="confirm-title">Confirm Action</h3>
+            <p class="text-gray-300 mb-6" id="confirm-message">Are you sure?</p>
+            <div class="flex justify-end gap-4">
+                <button id="confirm-cancel-btn" class="bg-gray-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500">Cancel</button>
+                <button id="confirm-ok-btn" class="bg-red-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+     <div id="toast-container" class="fixed bottom-5 right-5 z-[60] space-y-3">
+        </div>
+
+
+    <footer class="gradient-bg text-white py-5 text-center mt-12 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-800/10 to-purple-800/10 animate-pulse"></div>
+        <p class="relative z-10 text-sm text-blue-200">© <span id="current-year"></span> Advanced Manhwa Tracker. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // --- Constants and State ---
+        const ITEMS_PER_PAGE = 12; // Number of items per page
+        let currentPage = 1;
+        let currentSort = { key: 'dateAdded', order: 'desc' }; // Default sort
+        let currentFilter = 'all'; // Default filter
+        let currentSearchTerm = '';
+        let allManhwas = []; // Holds all data from localStorage
+
+        // --- DOM Elements ---
+        const manhwaList = document.getElementById('manhwa-list');
+        const addForm = document.getElementById('add-form');
+        const addManhwaForm = document.getElementById('add-manhwa-form');
+        const toggleFormBtn = document.getElementById('toggle-form-btn');
+        const toggleFormText = document.getElementById('toggle-form-text'); // This was used before, now directly manipulating button's innerHTML
+        const editModal = document.getElementById('edit-modal');
+        const editManhwaForm = document.getElementById('edit-manhwa-form');
+        const confirmModal = document.getElementById('confirm-modal');
+        const paginationControls = document.getElementById('pagination-controls');
+        const searchInput = document.getElementById('search-input');
+        const sortSelect = document.getElementById('sort-select');
+        const statusFilter = document.getElementById('status-filter');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const noResultsIndicator = document.getElementById('no-results-indicator');
+        const toastContainer = document.getElementById('toast-container');
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadManhwasFromStorage(); // Load all data initially
+            renderUI(); // Render based on initial state
+            setupEventListeners();
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+        });
+
+        function setupEventListeners() {
+            // Add form submission
+            addManhwaForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                addManhwa();
+            });
+
+            // Image preview for Add form
+            document.getElementById('image-file').addEventListener('change', function(event) {
+                previewImage(event.target.files[0], 'image-preview');
+            });
+             // Image preview for Edit form
+            document.getElementById('edit-image-file').addEventListener('change', function(event) {
+                previewImage(event.target.files[0], 'edit-image-preview');
+            });
+        }
+
+        // --- Core Data Handling ---
+
+        function loadManhwasFromStorage() {
+            try {
+                const storedData = localStorage.getItem('manhwas_v2');
+                allManhwas = storedData ? JSON.parse(storedData) : [];
+                allManhwas = allManhwas.map(m => ({
+                    ...m,
+                    id: m.id || Date.now() + Math.random(),
+                    title: m.title || 'Untitled',
+                    author: m.author || 'Unknown',
+                    chapter: (m.chapter === 'Not specified' || m.chapter === undefined) ? 0 : parseFloat(m.chapter) || 0,
+                    website: m.website || '',
+                    image: m.image || getDefaultImage(m.title || 'Untitled'), // Ensure image has a fallback during migration
+                    description: m.description || '',
+                    status: m.status || 'Planned',
+                    dateAdded: m.dateAdded || Date.now(),
+                    lastUpdated: m.lastUpdated || Date.now()
+                }));
+                saveManhwasToStorage();
+            } catch (error) {
+                console.error("Error loading data from localStorage:", error);
+                showToast("Error loading data. Starting fresh.", "error");
+                allManhwas = [];
+                localStorage.removeItem('manhwas_v2');
+            }
+        }
+
+        function saveManhwasToStorage() {
+            try {
+                localStorage.setItem('manhwas_v2', JSON.stringify(allManhwas));
+            } catch (error) {
+                console.error("Error saving data to localStorage:", error);
+                showToast("Error saving data. Changes might be lost.", "error");
+            }
+        }
+
+        function getManhwaById(id) {
+            // Ensure ID is parsed as a number if it's stored as a number, or consistently as string
+            // Assuming IDs are numbers from Date.now()
+            return allManhwas.find(m => m.id === parseFloat(id));
+        }
+
+        function updateManhwa(updatedManhwa) {
+            const index = allManhwas.findIndex(m => m.id === updatedManhwa.id);
+            if (index !== -1) {
+                allManhwas[index] = { ...updatedManhwa, lastUpdated: Date.now() };
+                saveManhwasToStorage();
+                renderUI();
+            }
+        }
+
+        function deleteManhwaById(id) {
+            allManhwas = allManhwas.filter(manhwa => manhwa.id !== parseFloat(id));
+            saveManhwasToStorage();
+            const totalPages = Math.ceil(getFilteredAndSortedManhwas().length / ITEMS_PER_PAGE);
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (totalPages === 0) {
+                currentPage = 1;
+            }
+            renderUI();
+        }
+
+        // --- UI Rendering ---
+
+        function renderUI() {
+            showLoading();
+            setTimeout(() => { // Allow loading indicator to render
+                const processedManhwas = getFilteredAndSortedManhwas();
+                renderManhwaList(processedManhwas);
+                renderPagination(processedManhwas.length);
+                hideLoading(processedManhwas.length === 0 && currentSearchTerm === '' && currentFilter === 'all'); // Show "empty library" if truly empty
+            }, 10);
+        }
+
+        function getFilteredAndSortedManhwas() {
+            let filtered = currentSearchTerm
+                ? allManhwas.filter(m =>
+                    (m.title && m.title.toLowerCase().includes(currentSearchTerm)) ||
+                    (m.author && m.author.toLowerCase().includes(currentSearchTerm))
+                  )
+                : [...allManhwas];
+
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(m => m.status === currentFilter);
+            }
+
+            filtered.sort((a, b) => {
+                let valA = a[currentSort.key];
+                let valB = b[currentSort.key];
+
+                if (currentSort.key === 'title' || currentSort.key === 'author') {
+                    valA = String(valA || '').toLowerCase(); // Handle potential undefined values
+                    valB = String(valB || '').toLowerCase();
+                } else if (currentSort.key === 'chapter') {
+                    valA = parseFloat(valA) || 0;
+                    valB = parseFloat(valB) || 0;
+                }
+                // Dates are timestamps (numbers)
+
+                if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
+                return 0;
+            });
+            return filtered;
+        }
+
+        function renderManhwaList(manhwasToRender) {
+            manhwaList.innerHTML = ''; // Clear existing content
+            const fragment = document.createDocumentFragment(); // OPTIMIZATION: Use DocumentFragment
+
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedManhwas = manhwasToRender.slice(startIndex, endIndex);
+
+            if (allManhwas.length === 0) {
+                manhwaList.innerHTML = `
+                    <div class="col-span-full text-center py-10 text-gray-500">
+                        <i class="fas fa-book-open fa-3x"></i>
+                        <p class="mt-2 text-lg">Your library is empty. Click 'Add New' to get started!</p>
+                    </div>`;
+                noResultsIndicator.classList.add('hidden');
+            } else if (paginatedManhwas.length === 0) {
+                 noResultsIndicator.classList.remove('hidden'); // Show "no results" if filters/search yield nothing
+            } else {
+                 noResultsIndicator.classList.add('hidden');
+                 paginatedManhwas.forEach(manhwa => {
+                    const card = createManhwaCard(manhwa);
+                    fragment.appendChild(card); // Append cards to the fragment
+                });
+                manhwaList.appendChild(fragment); // Append the fragment to the DOM once
+            }
+        }
+
+        function createManhwaCard(manhwa) {
+            const card = document.createElement('div');
+            card.className = 'manhwa-card rounded-xl shadow-lg p-4 flex flex-col';
+            const websiteLink = manhwa.website
+                ? `<a href="${manhwa.website}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline inline-flex items-center gap-1" title="Visit Website">
+                       <i class="fas fa-external-link-alt fa-xs"></i> Read Here
+                   </a>`
+                : '<span class="text-gray-500">No Link</span>';
+
+            const fallbackImage = `https://placehold.co/300x400/374151/E0E0E0?text=${encodeURIComponent((manhwa.title || 'N/A').substring(0, 20))}`;
+
+            card.innerHTML = `
+                <img src="${manhwa.image || fallbackImage}" alt="Cover for ${manhwa.title || 'N/A'}"
+                     loading="lazy" onerror="this.onerror=null; this.src='${fallbackImage}';"
+                     data-fallback="${fallbackImage}"
+                     class="w-full h-64 object-cover rounded-lg mb-4 border border-gray-600 shadow-md bg-gray-700">
+                <h3 class="text-xl font-bold text-blue-200 mb-1 truncate" title="${manhwa.title || 'N/A'}">${manhwa.title || 'N/A'}</h3>
+                <p class="text-sm text-gray-400 mb-1">Author: ${manhwa.author || 'Unknown'}</p>
+                <p class="text-sm text-gray-400 mb-1">Chapter: ${manhwa.chapter || 'N/A'}</p>
+                <p class="text-sm text-gray-400 mb-2">Status: <span class="font-semibold ${getStatusColor(manhwa.status)}">${manhwa.status}</span></p>
+                <p class="text-sm text-gray-400 mb-3">Link: ${websiteLink}</p>
+                <p class="text-sm text-gray-400 mt-1 mb-3 flex-grow overflow-hidden" style="max-height: 4.5em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                    ${manhwa.description || 'No description.'}
+                </p>
+                <div class="mt-auto pt-3 border-t border-gray-700 flex justify-between items-center gap-2">
+                     <span class="text-xs text-gray-500" title="Last Updated: ${new Date(manhwa.lastUpdated).toLocaleString()}">
+                        Updated: ${timeAgo(manhwa.lastUpdated)}
+                     </span>
+                     <div class="flex space-x-2">
+                        <button onclick="openEditModal('${manhwa.id}')" class="text-blue-400 hover:text-blue-300 transition duration-200" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="confirmDelete('${manhwa.id}', '${manhwa.title ? manhwa.title.replace(/'/g, "\\'") : 'N/A'}')" class="text-red-500 hover:text-red-400 transition duration-200" title="Delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function renderPagination(totalItems) {
+            paginationControls.innerHTML = '';
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+            if (totalPages <= 1) return;
+
+            const prevButton = document.createElement('button');
+            prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prevButton.className = `px-3 py-1 rounded-md ${currentPage === 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`;
+            prevButton.disabled = currentPage === 1;
+            prevButton.onclick = () => {
+                if (currentPage > 1) { currentPage--; renderUI(); }
+            };
+            paginationControls.appendChild(prevButton);
+
+            for (let i = 1; i <= totalPages; i++) {
+                 if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    const pageButton = document.createElement('button');
+                    pageButton.textContent = i;
+                    pageButton.className = `px-3 py-1 rounded-md ${i === currentPage ? 'bg-blue-800 text-white font-bold' : 'bg-gray-600 hover:bg-gray-700 text-gray-300'}`;
+                    pageButton.onclick = () => { currentPage = i; renderUI(); };
+                    paginationControls.appendChild(pageButton);
+                 } else if (i === currentPage - 2 || i === currentPage + 2) {
+                     const ellipsis = document.createElement('span');
+                     ellipsis.textContent = '...';
+                     ellipsis.className = 'px-3 py-1 text-gray-500';
+                     paginationControls.appendChild(ellipsis);
+                 }
+            }
+
+            const nextButton = document.createElement('button');
+            nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            nextButton.className = `px-3 py-1 rounded-md ${currentPage === totalPages ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`;
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.onclick = () => {
+                if (currentPage < totalPages) { currentPage++; renderUI(); }
+            };
+            paginationControls.appendChild(nextButton);
+        }
+
+        // --- Form Handling ---
+
+        function toggleAddForm() {
+            if (addForm.classList.contains('form-hidden')) {
+                addForm.classList.remove('form-hidden');
+                addForm.classList.add('form-visible');
+                toggleFormBtn.innerHTML = '<i class="fas fa-times"></i> Close Form'; // Updated
+                toggleFormBtn.classList.replace('from-blue-600','from-red-600');
+                toggleFormBtn.classList.replace('to-purple-600','to-pink-600');
+                addManhwaForm.reset();
+                clearImagePreview('image-preview');
+            } else {
+                addForm.classList.remove('form-visible');
+                addForm.classList.add('form-hidden');
+                toggleFormBtn.innerHTML = '<i class="fas fa-plus"></i> Add New'; // Updated
+                toggleFormBtn.classList.replace('from-red-600','from-blue-600');
+                toggleFormBtn.classList.replace('to-pink-600','to-purple-600');
+            }
+        }
+
+        async function addManhwa() {
+            const title = document.getElementById('title').value.trim();
+            if (!title) {
+                showToast('Title is required.', 'error');
+                document.getElementById('title').focus();
+                return;
+            }
+
+            const imageFile = document.getElementById('image-file').files[0];
+            let imageUrlInput = document.getElementById('image-url').value.trim();
+            let finalImage = getDefaultImage(title); // Start with default
+
+            if (imageUrlInput) { // URL has priority if provided
+                finalImage = imageUrlInput;
+            } else if (imageFile) { // If no URL, try file
+                try {
+                    finalImage = await readFileAsDataURL(imageFile);
+                } catch (error) {
+                    console.error("Error reading image file for add:", error);
+                    showToast(error.message || 'Error processing uploaded image. Using default.', 'error');
+                    // finalImage remains getDefaultImage(title) from initial assignment
+                }
+            }
+            // If neither URL nor valid file, finalImage is already default.
+
+            const newManhwa = {
+                id: Date.now(),
+                title: title,
+                author: document.getElementById('author').value.trim() || 'Unknown',
+                chapter: parseFloat(document.getElementById('chapter').value) || 0,
+                status: document.getElementById('status').value,
+                website: document.getElementById('website').value.trim() || '',
+                image: finalImage,
+                description: document.getElementById('description').value.trim() || '',
+                dateAdded: Date.now(),
+                lastUpdated: Date.now()
+            };
+
+            allManhwas.push(newManhwa);
+            saveManhwasToStorage();
+            currentPage = 1;
+            currentSort = { key: 'dateAdded', order: 'desc' };
+            sortSelect.value = 'dateAdded_desc';
+            renderUI();
+            addManhwaForm.reset();
+            clearImagePreview('image-preview');
+            toggleAddForm();
+            showToast(`"${title}" added successfully!`, 'success');
+        }
+
+        // --- Edit Modal ---
+
+        function openEditModal(id) {
+            const manhwa = getManhwaById(id);
+            if (!manhwa) {
+                showToast("Could not find the entry to edit.", "error");
+                return;
+            }
+
+            document.getElementById('edit-id').value = manhwa.id;
+            document.getElementById('edit-title').value = manhwa.title;
+            document.getElementById('edit-author').value = manhwa.author;
+            document.getElementById('edit-chapter').value = manhwa.chapter || '';
+            document.getElementById('edit-status').value = manhwa.status;
+            document.getElementById('edit-website').value = manhwa.website;
+            // Only pre-fill URL if it's not a data URL or our placeholder
+            const isHttpUrl = manhwa.image && manhwa.image.startsWith('http') && !manhwa.image.startsWith('https://placehold.co');
+            document.getElementById('edit-image-url').value = isHttpUrl ? manhwa.image : '';
+            document.getElementById('edit-description').value = manhwa.description;
+
+            const currentImageElement = document.getElementById('edit-current-image');
+            const fallbackImage = `https://placehold.co/150x200/374151/E0E0E0?text=${encodeURIComponent((manhwa.title || 'N/A').substring(0,15))}`;
+            currentImageElement.src = manhwa.image || fallbackImage;
+            currentImageElement.onerror = () => { currentImageElement.src = fallbackImage; };
+
+            document.getElementById('edit-image-file').value = '';
+            clearImagePreview('edit-image-preview');
+
+            editModal.classList.remove('modal-hidden');
+            editModal.classList.add('modal-visible');
+        }
+
+        function closeEditModal() {
+            editModal.classList.remove('modal-visible');
+            editModal.classList.add('modal-hidden');
+            editManhwaForm.reset();
+            clearImagePreview('edit-image-preview');
+        }
+
+        async function saveEdit() {
+            const id = parseFloat(document.getElementById('edit-id').value); // Ensure ID is number
+            const title = document.getElementById('edit-title').value.trim();
+            if (!title) {
+                 showToast('Title is required.', 'error');
+                 document.getElementById('edit-title').focus();
+                 return;
+            }
+
+            const existingManhwa = getManhwaById(id);
+            if (!existingManhwa) {
+                 showToast('Error: Could not find entry to update.', 'error');
+                 return;
+            }
+
+            const imageFile = document.getElementById('edit-image-file').files[0];
+            let imageUrlInput = document.getElementById('edit-image-url').value.trim();
+            let finalImage = existingManhwa.image; // Default to existing image
+
+            if (imageUrlInput) { // New URL has priority
+                finalImage = imageUrlInput;
+            } else if (imageFile) { // If no new URL, try new file
+                try {
+                    finalImage = await readFileAsDataURL(imageFile);
+                } catch (error) {
+                    console.error("Error reading image file for edit:", error);
+                    showToast(error.message || 'Error processing new image. Keeping previous.', 'error');
+                    // finalImage remains existingManhwa.image
+                }
+            }
+            // If neither new URL nor new file, finalImage remains existingManhwa.image.
+            // If user clears the URL and doesn't upload a file, they might want to revert to a default.
+            // However, current logic keeps old image unless new one is successfully processed or new URL is given.
+            // If both edit-image-url is empty AND no file is chosen, should it use default?
+            // For now, it keeps the old one, which is safer. If user wants no image, they'd need a "remove image" button.
+
+            const updatedManhwa = {
+                ...existingManhwa,
+                title: title,
+                author: document.getElementById('edit-author').value.trim() || 'Unknown',
+                chapter: parseFloat(document.getElementById('edit-chapter').value) || 0,
+                status: document.getElementById('edit-status').value,
+                website: document.getElementById('edit-website').value.trim() || '',
+                image: finalImage,
+                description: document.getElementById('edit-description').value.trim() || '',
+                lastUpdated: Date.now()
+            };
+
+            updateManhwa(updatedManhwa);
+            closeEditModal();
+            showToast(`"${title}" updated successfully!`, 'success');
+        }
+
+        // --- Delete Confirmation ---
+
+        function confirmDelete(id, title) {
+            const confirmTitle = document.getElementById('confirm-title');
+            const confirmMessage = document.getElementById('confirm-message');
+            const confirmOkBtn = document.getElementById('confirm-ok-btn');
+            const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+
+            confirmTitle.textContent = `Delete "${title}"?`;
+            confirmMessage.textContent = `Are you sure you want to permanently delete this entry? This action cannot be undone.`;
+
+            const newOkBtn = confirmOkBtn.cloneNode(true); // Clone to remove old listeners
+            confirmOkBtn.parentNode.replaceChild(newOkBtn, confirmOkBtn);
+            newOkBtn.onclick = () => {
+                deleteManhwaById(id);
+                closeConfirmModal();
+                showToast(`"${title}" deleted.`, 'info');
+            };
+
+            confirmCancelBtn.onclick = closeConfirmModal; // This can stay as is
+
+            confirmModal.classList.remove('modal-hidden');
+            confirmModal.classList.add('modal-visible');
+        }
+
+        function closeConfirmModal() {
+            confirmModal.classList.remove('modal-visible');
+            confirmModal.classList.add('modal-hidden');
+        }
+
+        // --- Search, Sort, Filter Handlers ---
+
+        function handleSearch() {
+            clearTimeout(window.searchTimeout);
+            window.searchTimeout = setTimeout(() => {
+                currentSearchTerm = searchInput.value.trim().toLowerCase();
+                currentPage = 1;
+                renderUI();
+            }, 300);
+        }
+
+        function handleSort() {
+            const [key, order] = sortSelect.value.split('_');
+            currentSort = { key, order };
+            currentPage = 1;
+            renderUI();
+        }
+
+        function handleFilter() {
+            currentFilter = statusFilter.value;
+            currentPage = 1;
+            renderUI();
+        }
+
+
+        // --- Image Handling ---
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                if (!file || !file.type.startsWith('image/')) {
+                    return reject(new Error("Invalid file type. Please select an image."));
+                }
+                // OPTIMIZATION: Add file size check
+                const maxSize = 2 * 1024 * 1024; // 2MB
+                if (file.size > maxSize) {
+                    return reject(new Error(`File too large. Max ${maxSize / 1024 / 1024}MB.`));
+                }
+
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(new Error("Error reading file."));
+                reader.readAsDataURL(file);
+            });
+        }
+
+         function previewImage(file, previewElementId) {
+            const preview = document.getElementById(previewElementId);
+            if (file && file.type.startsWith('image/')) {
+                // Check file size before creating reader for preview as well
+                const maxSize = 2 * 1024 * 1024; // 2MB
+                if (file.size > maxSize) {
+                    showToast(`Image too large for preview (max ${maxSize / 1024 / 1024}MB).`, 'warning');
+                    clearImagePreview(previewElementId);
+                    // Clear the file input as well, because it's already deemed too large
+                    const fileInput = document.getElementById(previewElementId.replace('-preview', '-file')); // e.g. image-file or edit-image-file
+                    if (fileInput) fileInput.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                clearImagePreview(previewElementId);
+            }
+        }
+
+        function clearImagePreview(previewElementId) {
+             const preview = document.getElementById(previewElementId);
+             if (preview) { // Check if element exists
+                preview.src = '#';
+                preview.classList.add('hidden');
+             }
+        }
+
+        function getDefaultImage(title = 'Placeholder') {
+            return `https://placehold.co/300x400/1F2937/E5E7EB?text=${encodeURIComponent(title.substring(0, 20))}`;
+        }
+
+
+        // --- Import / Export ---
+
+        function exportData() {
+            if (allManhwas.length === 0) {
+                showToast("Nothing to export.", "info");
+                return;
+            }
+            try {
+                const dataStr = JSON.stringify(allManhwas, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                const timestamp = new Date().toISOString().slice(0, 10);
+                link.download = `manhwa_tracker_backup_${timestamp}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                showToast("Data exported successfully!", "success");
+            } catch (error) {
+                 console.error("Export failed:", error);
+                 showToast("Data export failed.", "error");
+            }
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedData)) {
+                        throw new Error("Invalid file format: Data is not an array.");
+                    }
+
+                    const validatedData = importedData.map(item => ({
+                        id: item.id || Date.now() + Math.random(),
+                        title: item.title || 'Untitled Import',
+                        author: item.author || 'Unknown',
+                        chapter: parseFloat(item.chapter) || 0,
+                        status: item.status || 'Planned',
+                        website: item.website || '',
+                        image: item.image || getDefaultImage(item.title || 'Import'),
+                        description: item.description || '',
+                        dateAdded: item.dateAdded || Date.now(),
+                        lastUpdated: item.lastUpdated || Date.now()
+                    }));
+
+                    showConfirm(
+                        "Import Data",
+                        "Merge with current list or replace entirely?",
+                        "Merge", "Replace",
+                        () => { // Merge
+                            const existingIds = new Set(allManhwas.map(m => m.id));
+                            const newItems = validatedData.filter(item => !existingIds.has(item.id));
+                            allManhwas = [...allManhwas, ...newItems];
+                            // Or, for a more complex merge that updates existing items:
+                            // validatedData.forEach(item => {
+                            //   const existingIndex = allManhwas.findIndex(m => m.id === item.id);
+                            //   if (existingIndex > -1) allManhwas[existingIndex] = item; // Update
+                            //   else allManhwas.push(item); // Add new
+                            // });
+                            saveManhwasToStorage();
+                            currentPage = 1; renderUI();
+                            showToast("Data merged successfully!", "success");
+                        },
+                        () => { // Replace
+                            allManhwas = validatedData;
+                            saveManhwasToStorage();
+                            currentPage = 1; renderUI();
+                            showToast("Data replaced successfully!", "success");
+                        }
+                    );
+
+                } catch (error) {
+                    console.error("Import failed:", error);
+                    showToast(`Import failed: ${error.message}`, "error");
+                } finally {
+                    event.target.value = null;
+                }
+            };
+            reader.onerror = () => {
+                 showToast("Failed to read the import file.", "error");
+                 event.target.value = null;
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Utility Functions ---
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'Reading': return 'text-green-400';
+                case 'Completed': return 'text-blue-400';
+                case 'On Hold': return 'text-yellow-400';
+                case 'Dropped': return 'text-red-400';
+                case 'Planned': return 'text-purple-400';
+                default: return 'text-gray-400';
+            }
+        }
+
+        function timeAgo(timestamp) {
+            const now = new Date();
+            const past = new Date(timestamp);
+            const diffInSeconds = Math.floor((now - past) / 1000);
+
+            if (diffInSeconds < 5) return `just now`; // More immediate
+            if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+
+            const diffInMinutes = Math.floor(diffInSeconds / 60);
+            if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) return `${diffInHours}h ago`;
+
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) return `${diffInDays}d ago`;
+            
+            const diffInWeeks = Math.floor(diffInDays / 7);
+            if (diffInWeeks < 4) return `${diffInWeeks}w ago`;
+            
+            const diffInMonths = Math.floor(diffInDays / 30.44); // Average days in month
+            if (diffInMonths < 12) return `${diffInMonths}mo ago`;
+            
+            const diffInYears = Math.floor(diffInDays / 365.25); // Account for leap year
+            return `${diffInYears}y ago`;
+        }
+
+        function showLoading() {
+            manhwaList.innerHTML = '';
+            loadingIndicator.classList.remove('hidden');
+            noResultsIndicator.classList.add('hidden');
+        }
+
+        function hideLoading(isLibraryEmptyAndNoFilters) {
+            loadingIndicator.classList.add('hidden');
+             if (isLibraryEmptyAndNoFilters && allManhwas.length === 0) { // Only show "library empty" if it's truly empty and no filters applied
+                 // This case is handled by renderManhwaList directly
+             } else if (getFilteredAndSortedManhwas().slice((currentPage - 1) * ITEMS_PER_PAGE, (currentPage - 1) * ITEMS_PER_PAGE + ITEMS_PER_PAGE).length === 0 && allManhwas.length > 0) {
+                 noResultsIndicator.classList.remove('hidden');
+             } else {
+                 noResultsIndicator.classList.add('hidden');
+             }
+        }
+
+        function showConfirm(title, message, okText, cancelText, onOk, onCancel) {
+            const confirmTitleEl = document.getElementById('confirm-title');
+            const confirmMessageEl = document.getElementById('confirm-message');
+            const confirmOkBtn = document.getElementById('confirm-ok-btn');
+            const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+
+            confirmTitleEl.textContent = title;
+            confirmMessageEl.textContent = message;
+            
+            // Default button classes
+            let okBtnClasses = 'bg-blue-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500';
+            let cancelBtnClasses = 'bg-gray-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500';
+
+            // Customize for delete confirmation
+            if (title.toLowerCase().includes("delete")) {
+                 okBtnClasses = 'bg-red-600 text-white py-2 px-4 rounded-lg button-glow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500';
+            }
+            
+            confirmOkBtn.textContent = okText;
+            confirmOkBtn.className = okBtnClasses; // Apply class
+            confirmCancelBtn.textContent = cancelText;
+            confirmCancelBtn.className = cancelBtnClasses; // Apply class
+
+
+            const newOkBtn = confirmOkBtn.cloneNode(true);
+            confirmOkBtn.parentNode.replaceChild(newOkBtn, confirmOkBtn);
+            newOkBtn.onclick = () => { if (onOk) onOk(); closeConfirmModal(); };
+
+            const newCancelBtn = confirmCancelBtn.cloneNode(true);
+            confirmCancelBtn.parentNode.replaceChild(newCancelBtn, confirmCancelBtn);
+            newCancelBtn.onclick = () => { if (onCancel) onCancel(); closeConfirmModal(); };
+
+            confirmModal.classList.remove('modal-hidden');
+            confirmModal.classList.add('modal-visible');
+        }
+
+        function showToast(message, type = 'info', duration = 3500) { // Slightly longer duration
+            const toast = document.createElement('div');
+            let bgColor, iconClass;
+
+            switch (type) {
+                case 'success': bgColor = 'bg-green-600'; iconClass = 'fas fa-check-circle'; break;
+                case 'error': bgColor = 'bg-red-600'; iconClass = 'fas fa-exclamation-circle'; break;
+                case 'warning': bgColor = 'bg-yellow-500 text-gray-800'; iconClass = 'fas fa-exclamation-triangle'; break; // Darker text for yellow
+                case 'info': default: bgColor = 'bg-blue-600'; iconClass = 'fas fa-info-circle'; break;
+            }
+
+            toast.className = `flex items-center gap-3 ${bgColor} ${type !== 'warning' ? 'text-white' : ''} text-sm font-medium px-4 py-3 rounded-lg shadow-xl transition-all duration-500 ease-out transform translate-x-full opacity-0`;
+            toast.innerHTML = `<i class="${iconClass} text-lg"></i><span>${message}</span>`;
+            toastContainer.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                 requestAnimationFrame(() => { // Double rAF for robust transition trigger
+                    toast.classList.remove('translate-x-full', 'opacity-0');
+                    toast.classList.add('translate-x-0', 'opacity-100');
+                 });
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('translate-x-0', 'opacity-100');
+                toast.classList.add('translate-x-full', 'opacity-0'); // Animate out
+                toast.addEventListener('transitionend', () => {
+                    if (toast.parentNode) { toast.remove(); }
+                }, { once: true }); // Ensure listener is removed
+            }, duration);
+        }
+
+    </script>
+</body>
+</html>
