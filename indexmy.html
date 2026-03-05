@@ -750,27 +750,43 @@
             try {
                 const seed = Math.floor(Math.random() * 300);
                 
-                const systemPrompt = `You are a strict, automated manga/manhwa update checker using web search.
-Your task is to verify if a specific chapter is available on a SPECIFIC website.
-RULES:
-1. You MUST ONLY search the provided 'Website'. Do NOT check other aggregators, wikis, or sites.
-2. Check if the 'Target Chapter' (or a higher number) is currently published and readable on that exact site.
-3. Reply EXACTLY and ONLY with 'True' if available, or 'False' if not available.
-4. Do NOT include any formatting, markdown, punctuation, or explanations.
+                const systemPrompt = `You are an automated manhwa/manga update checker. You possess web search capabilities.
+Your sole purpose is to check if a specific chapter of a series is available to read on a specific website.
 
-Example 1:
-User: Title: Solo Leveling
-Website: https://example-scans.com
+BEHAVIOR RULES:
+1. STRICT DOMAIN SEARCH: You must ONLY search within the exact 'Website' provided by the user. Do not rely on external wikis or other aggregator sites.
+2. CHAPTER VERIFICATION: Check if the exact 'Target Chapter' (or a newer/higher chapter) is currently released and readable on that specific website.
+3. RESTRICTED OUTPUT: Your response must be a single word. Reply EXACTLY with "True" if the chapter is available, or "False" if it is not available. Do not add any conversational text, markdown, or punctuation.
+
+---
+EXPECTED USER REQUEST FORMAT:
+Title: [Series Name]
+Website: [URL to search]
+Target Chapter: [Chapter Number]
+
+---
+EXAMPLE 1:
+User Request:
+Title: Solo Leveling
+Website: https://flamescans.org
 Target Chapter: 15
-AI: True
 
-Example 2:
-User: Title: Omniscient Reader
-Website: https://example-scans.com
+AI Behavior: The AI searches flamescans.org for "Solo Leveling". It finds that chapter 15 (or higher) is published.
+AI Output:
+True
+
+---
+EXAMPLE 2:
+User Request:
+Title: Omniscient Reader
+Website: https://asuracomic.net
 Target Chapter: 9999
-AI: False`;
 
-                const userPrompt = `Title: ${manhwa.title}\nWebsite: ${manhwa.website}\nTarget Chapter: ${manhwa.chapter}`;
+AI Behavior: The AI searches asuracomic.net for "Omniscient Reader". It sees the latest chapter is only 200, so chapter 9999 is NOT available.
+AI Output:
+False`;
+
+                const userPrompt = `User Request:\nTitle: ${manhwa.title}\nWebsite: ${manhwa.website}\nTarget Chapter: ${manhwa.chapter}`;
 
                 const response = await fetch('https://gen.pollinations.ai/v1/chat/completions', {
                     method: 'POST',
@@ -781,7 +797,7 @@ AI: False`;
                     body: JSON.stringify({
                         model: 'gemini-search',
                         seed: seed,
-                        temperature: 0,
+                        temperature: 1, // Changed to 1 per user request
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: userPrompt }
